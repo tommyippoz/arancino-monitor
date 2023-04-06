@@ -41,6 +41,7 @@ if __name__ == '__main__':
         else:
             print("ERROR: monitor time was %d ms, desired interval is %d ms" % (read_time, OBS_INTERVAL))
 
+    # Print Observation Data which is left in the list
     if obs_data is not None and len(obs_data) > 0:
         store_observations(FILENAME, obs_data)
 

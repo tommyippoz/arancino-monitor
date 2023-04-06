@@ -179,7 +179,16 @@ class JSONProbe(ArancinoProbe):
         """
         cmd_output = subprocess.check_output([self.shell_command[0], self.shell_command[1]], text=True)
         json_data = jc.parse(self.jc_flag, cmd_output)
-        json_data = {self.tag + '.' + str(key): val for key, val in json_data.items()}
+        if isinstance(json_data, list):
+            if len(json_data) == 1:
+                json_data = {self.tag + '.' + str(key): val for key, val in json_data[0].items()}
+            elif len(json_data) == 0:
+                cmd_output = '{"' + cmd_output[0:-1].replace(' ', '": ').replace('\n', ', "') + "}"
+                json_data = {self.tag + '.' + str(key): val for key, val in json.loads(cmd_output).items()}
+            else:
+                print("BOOH")
+        elif isinstance(json_data, dict):
+            json_data = {self.tag + '.' + str(key): val for key, val in json_data.items()}
         return json_data
 
 
@@ -197,3 +206,35 @@ class MemInfoProbe(JSONProbe):
         :return: string description of the probe
         """
         return "MemInfo (" + str(self.n_indicators()) + ")"
+
+
+class IOStatProbe(JSONProbe):
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        JSONProbe.__init__(self, 'iostat', '', 'iostat', 'iostat')
+
+    def describe(self) -> str:
+        """
+        Returns a string with details of this probe
+        :return: string description of the probe
+        """
+        return "IOStat (" + str(self.n_indicators()) + ")"
+
+
+class VMInfoProbe(JSONProbe):
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        JSONProbe.__init__(self, 'cat', '/proc/vmstat', 'vmstat', 'vmstat')
+
+    def describe(self) -> str:
+        """
+        Returns a string with details of this probe
+        :return: string description of the probe
+        """
+        return "VMStat (" + str(self.n_indicators()) + ")"
