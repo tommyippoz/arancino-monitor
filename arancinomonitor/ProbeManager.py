@@ -1,4 +1,5 @@
-from arancinomonitor.ArancinoProbe import PythonProbe
+from arancinomonitor.ArancinoProbe import PythonProbe, MemInfoProbe
+from arancinomonitor.utils import current_ms
 
 
 def get_all_probes():
@@ -6,7 +7,7 @@ def get_all_probes():
     Returns a list of all ARANCINO probes (without checking for availability)
     :return: a list of probes
     """
-    probes_list = [PythonProbe(), ]
+    probes_list = [PythonProbe(), MemInfoProbe()]
     return probes_list
 
 
@@ -41,3 +42,14 @@ class ProbeManager:
         if set_probes:
             self.probes = av_probes
         return av_probes
+
+    def read_probes_data(self) -> dict:
+        if self.probes is None or len(self.probes) == 0:
+            return None
+        else:
+            dict_data = {'timestamp': current_ms()}
+            for probe in self.probes:
+                p_data = probe.read_data()
+                if p_data is not None:
+                    dict_data.update(p_data)
+            return dict_data
