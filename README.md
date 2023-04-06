@@ -1,2 +1,2 @@
 # arancino-monitor
-Pytho Monitor for ARANCINO SoC
+Python Monitor for ARANCINO SoC @UNIFI
