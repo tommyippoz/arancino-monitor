@@ -1,6 +1,4 @@
-import json
 import subprocess
-import jc
 import psutil
 
 
@@ -104,12 +102,12 @@ class PythonProbe(ArancinoProbe):
                 python_data[tag + '.' + pp_key] = pp_dict[pp_key]
 
         # CPU Load
-        tag = 'cpu_load'
-        pp_data = psutil.getloadavg()
-        if pp_data is not None and isinstance(pp_data, tuple) and len(pp_data) == 3:
-            python_data[tag + ".load_1m"] = pp_data[0]
-            python_data[tag + ".load_5m"] = pp_data[1]
-            python_data[tag + ".load_15m"] = pp_data[2]
+        # tag = 'cpu_load'
+        # pp_data = psutil.getloadavg()
+        # if pp_data is not None and isinstance(pp_data, tuple) and len(pp_data) == 3:
+        #     python_data[tag + ".load_1m"] = pp_data[0]
+        #     python_data[tag + ".load_5m"] = pp_data[1]
+        #     python_data[tag + ".load_15m"] = pp_data[2]
 
         # Swap Memory
         tag = 'swap'
@@ -136,12 +134,12 @@ class PythonProbe(ArancinoProbe):
                 python_data[tag + '.' + pp_key] = pp_dict[pp_key]
 
         # Disk IO
-        tag = 'disk_io'
-        pp_data = psutil.disk_io_counters()
-        if pp_data is not None:
-            pp_dict = pp_data._asdict()
-            for pp_key in pp_dict.keys():
-                python_data[tag + '.' + pp_key] = pp_dict[pp_key]
+        # tag = 'disk_io'
+        # pp_data = psutil.disk_io_counters()
+        # if pp_data is not None:
+        #     pp_dict = pp_data._asdict()
+        #     for pp_key in pp_dict.keys():
+        #         python_data[tag + '.' + pp_key] = pp_dict[pp_key]
 
         # Net IO
         tag = 'net_io'
@@ -161,14 +159,13 @@ class PythonProbe(ArancinoProbe):
         return True
 
 
-class JSONProbe(ArancinoProbe):
+class ScriptProbe(ArancinoProbe):
 
-    def __init__(self, command, command_params, jc_flag, tag):
+    def __init__(self, command, command_params, tag):
         """
         Constructor
         """
         self.shell_command = [command, command_params]
-        self.jc_flag = jc_flag
         self.tag = tag
         ArancinoProbe.__init__(self)
 
@@ -177,28 +174,45 @@ class JSONProbe(ArancinoProbe):
         Reads probe data
         :return: a dictionary, or None if execution fails
         """
-        cmd_output = subprocess.check_output([self.shell_command[0], self.shell_command[1]], text=True)
-        json_data = jc.parse(self.jc_flag, cmd_output)
-        if isinstance(json_data, list):
-            if len(json_data) == 1:
-                json_data = {self.tag + '.' + str(key): val for key, val in json_data[0].items()}
-            elif len(json_data) == 0:
-                cmd_output = '{"' + cmd_output[0:-1].replace(' ', '": ').replace('\n', ', "') + "}"
-                json_data = {self.tag + '.' + str(key): val for key, val in json.loads(cmd_output).items()}
-            else:
-                print("BOOH")
-        elif isinstance(json_data, dict):
-            json_data = {self.tag + '.' + str(key): val for key, val in json_data.items()}
-        return json_data
+        cmd_output = subprocess.check_output([self.shell_command[0], self.shell_command[1]])
+        dict_data = self.to_dict(cmd_output)
+        if dict_data is not None:
+            dict_data = {self.tag + '.' + str(key): val for key, val in dict_data.items()}
+            return dict_data
+        else:
+            return None
+
+    def to_dict(self, cmd_string) -> dict:
+        """
+        Abstract method to parse command string
+        :param cmd_string:
+        :return: the dict corresponding to the parsed string
+        """
+        if cmd_string is None or len(cmd_string) == 0:
+            return None
+        else:
+            if isinstance(cmd_string, bytes):
+                cmd_string = cmd_string.decode("utf-8")
+            cmd_split = cmd_string.split('\n')
+            cmd_dict = {}
+            for cmd_item in cmd_split:
+                if len(cmd_item) > 0:
+                    if ':' in cmd_item:
+                        c_name = cmd_item.split(':')[0].strip()
+                        c_value = cmd_item.split(':')[1].strip()
+                        if ' ' in c_value:
+                            c_value = c_value.split(' ')[0].strip()
+                        cmd_dict[c_name] = c_value
+            return cmd_dict
 
 
-class MemInfoProbe(JSONProbe):
+class MemInfoProbe(ScriptProbe):
 
     def __init__(self):
         """
         Constructor
         """
-        JSONProbe.__init__(self, 'cat', '/proc/meminfo', 'proc', 'meminfo')
+        ScriptProbe.__init__(self, 'cat', '/proc/meminfo', 'meminfo')
 
     def describe(self) -> str:
         """
@@ -208,13 +222,13 @@ class MemInfoProbe(JSONProbe):
         return "MemInfo (" + str(self.n_indicators()) + ")"
 
 
-class IOStatProbe(JSONProbe):
+class IOStatProbe(ScriptProbe):
 
     def __init__(self):
         """
         Constructor
         """
-        JSONProbe.__init__(self, 'iostat', '', 'iostat', 'iostat')
+        ScriptProbe.__init__(self, 'iostat', '', 'iostat')
 
     def describe(self) -> str:
         """
@@ -224,13 +238,36 @@ class IOStatProbe(JSONProbe):
         return "IOStat (" + str(self.n_indicators()) + ")"
 
 
-class VMInfoProbe(JSONProbe):
+class VMInfoProbe(ScriptProbe):
 
     def __init__(self):
         """
         Constructor
         """
-        JSONProbe.__init__(self, 'cat', '/proc/vmstat', 'vmstat', 'vmstat')
+        ScriptProbe.__init__(self, 'cat', '/proc/vmstat', 'vmstat')
+
+    def to_dict(self, cmd_string) -> dict:
+        """
+        Abstract method to parse command string
+        :param cmd_string:
+        :return: the dict corresponding to the parsed string
+        """
+        if cmd_string is None or len(cmd_string) == 0:
+            return None
+        else:
+            if isinstance(cmd_string, bytes):
+                cmd_string = cmd_string.decode("utf-8")
+            cmd_split = cmd_string.split('\n')
+            cmd_dict = {}
+            for cmd_item in cmd_split:
+                if len(cmd_item) > 0:
+                    if ' ' in cmd_item:
+                        c_name = cmd_item.split(' ')[0].strip()
+                        c_value = cmd_item.split(' ')[1].strip()
+                        if ' ' in c_value:
+                            c_value = c_value.split(' ')[0].strip()
+                        cmd_dict[c_name] = c_value
+            return cmd_dict
 
     def describe(self) -> str:
         """

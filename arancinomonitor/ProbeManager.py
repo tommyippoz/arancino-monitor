@@ -7,7 +7,8 @@ def get_all_probes():
     Returns a list of all ARANCINO probes (without checking for availability)
     :return: a list of probes
     """
-    probes_list = [VMInfoProbe(), IOStatProbe(), PythonProbe(), MemInfoProbe()]
+    probes_list = [VMInfoProbe(), PythonProbe(), MemInfoProbe()]
+    #probes_list = [IOStatProbe()]
     return probes_list
 
 
