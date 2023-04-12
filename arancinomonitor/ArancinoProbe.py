@@ -258,9 +258,11 @@ class IOStatProbe(ScriptProbe):
             s_val = None
             for cmd_item in cmd_split:
                 if s_head is not None:
+                    cmd_item = " ".join(cmd_item.split())
                     s_val = [x.strip() for x in cmd_item.strip().split(' ')]
                     break
                 if cmd_item.startswith('avg-cpu'):
+                    cmd_item = " ".join(cmd_item.split())
                     s_head = cmd_item.replace('%', '').split(' ')
                     s_head = [x.strip() for x in s_head[1:]]
             if s_head is not None and s_val is not None:
