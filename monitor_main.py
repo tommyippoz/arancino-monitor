@@ -74,6 +74,7 @@ if __name__ == '__main__':
         obs_data.append(pm.read_probes_data())
         if len(obs_data) % STORE_INTERVAL == STORE_INTERVAL - 1:
             store_observations(FILENAME, obs_data)
+            obs_data = []
         read_time = current_ms() - start_it
         if read_time < OBS_INTERVAL:
             time.sleep((OBS_INTERVAL - read_time)/1000)
@@ -84,6 +85,7 @@ if __name__ == '__main__':
     # Print Observation Data which is left in the list
     if obs_data is not None and len(obs_data) > 0:
         store_observations(FILENAME, obs_data)
+        obs_data = []
 
 
 
