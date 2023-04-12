@@ -179,8 +179,11 @@ class ScriptProbe(ArancinoProbe):
         Reads probe data
         :return: a dictionary, or None if execution fails
         """
-        cmd_output = subprocess.check_output([self.shell_command[0], self.shell_command[1]])
-        dict_data = self.to_dict(cmd_output)
+        try:
+            cmd_output = subprocess.check_output([self.shell_command[0], self.shell_command[1]])
+            dict_data = self.to_dict(cmd_output)
+        except:
+            dict_data = None
         if dict_data is not None:
             dict_data = {self.tag + '.' + str(key): val for key, val in dict_data.items()}
             return dict_data
@@ -308,3 +311,40 @@ class VMInfoProbe(ScriptProbe):
         :return: string description of the probe
         """
         return "VMStat (" + str(self.n_indicators()) + ")"
+
+
+class RedisProbe(ScriptProbe):
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        ScriptProbe.__init__(self, 'redis-cli', 'mget T H P', 'redis')
+
+    def to_dict(self, cmd_string) -> dict:
+        """
+        Abstract method to parse command string
+        :param cmd_string:
+        :return: the dict corresponding to the parsed string
+        """
+        if cmd_string is None or len(cmd_string) == 0:
+            return None
+        else:
+            if isinstance(cmd_string, bytes):
+                cmd_string = cmd_string.decode("utf-8")
+            cmd_split = cmd_string.split('\n')
+            cmd_dict = {}
+            cmd_tags = ['T', 'H', 'P']
+            for i in range(3):
+                cmd_item = cmd_split[i]
+                if len(cmd_item) > 0:
+                    cmd_dict[cmd_tags[i]] = cmd_item.split(' ')[0].strip().replace('"', '')
+                    
+            return cmd_dict
+
+    def describe(self) -> str:
+        """
+        Returns a string with details of this probe
+        :return: string description of the probe
+        """
+        return "Redis (" + str(self.n_indicators()) + ")"
