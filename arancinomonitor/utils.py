@@ -18,8 +18,8 @@ def store_observations(filename, obs_data):
     """
     if not os.path.exists(filename):
         with open(filename, 'w') as f:
-            f.write("%s\n" % ','.join([str(ov) for ov in obs_data[0].keys()]))
+            f.write("%s\n" % ','.join([str(ov) for ov in sorted(obs_data[0].keys())]))
     with open(filename, 'a') as f:
         for obs in obs_data:
-            f.write("%s\n" % ','.join([str(ov) for ov in obs.values()]))
+            f.write("%s\n" % ','.join([str(obs[dk]) for dk in sorted(obs.keys())]))
     pass

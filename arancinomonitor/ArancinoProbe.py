@@ -242,6 +242,32 @@ class IOStatProbe(ScriptProbe):
         """
         return "IOStat (" + str(self.n_indicators()) + ")"
 
+    def to_dict(self, cmd_string) -> dict:
+        """
+        Abstract method to parse command string
+        :param cmd_string:
+        :return: the dict corresponding to the parsed string
+        """
+        if cmd_string is None or len(cmd_string) == 0:
+            return None
+        else:
+            if isinstance(cmd_string, bytes):
+                cmd_string = cmd_string.decode("utf-8")
+            cmd_split = cmd_string.split('\n')
+            s_head = None
+            s_val = None
+            for cmd_item in cmd_split:
+                if cmd_item.startswith('avg-cpu'):
+                    s_head = cmd_item.replace('%', '').split(' ')
+                    s_head = [x.strip() for x in s_head[1:]]
+                if s_head is not None:
+                    s_val = [x.strip() for x in cmd_item.strip().split(' ')]
+                    break
+            if s_head is not None and s_val is not None:
+                return {k: v for k, v in zip(s_head, s_val)}
+            else:
+                return {}
+
 
 class VMInfoProbe(ScriptProbe):
 

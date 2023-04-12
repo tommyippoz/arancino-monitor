@@ -47,7 +47,7 @@ class ProbeManager:
         if self.probes is None or len(self.probes) == 0:
             return None
         else:
-            dict_data = {'timestamp': current_ms()}
+            dict_data = {'_timestamp': current_ms()}
             for probe in self.probes:
                 p_data = probe.read_data()
                 if p_data is not None:
