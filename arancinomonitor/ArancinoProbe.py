@@ -102,12 +102,14 @@ class PythonProbe(ArancinoProbe):
                 python_data[tag + '.' + pp_key] = pp_dict[pp_key]
 
         # CPU Load
-        # tag = 'cpu_load'
-        # pp_data = psutil.getloadavg()
-        # if pp_data is not None and isinstance(pp_data, tuple) and len(pp_data) == 3:
-        #     python_data[tag + ".load_1m"] = pp_data[0]
-        #     python_data[tag + ".load_5m"] = pp_data[1]
-        #     python_data[tag + ".load_15m"] = pp_data[2]
+        f_obj = getattr(psutil, "getloadavg", None)
+        if callable(f_obj):
+            tag = 'cpu_load'
+            pp_data = psutil.getloadavg()
+            if pp_data is not None and isinstance(pp_data, tuple) and len(pp_data) == 3:
+                python_data[tag + ".load_1m"] = pp_data[0]
+                python_data[tag + ".load_5m"] = pp_data[1]
+                python_data[tag + ".load_15m"] = pp_data[2]
 
         # Swap Memory
         tag = 'swap'
@@ -134,12 +136,15 @@ class PythonProbe(ArancinoProbe):
                 python_data[tag + '.' + pp_key] = pp_dict[pp_key]
 
         # Disk IO
-        # tag = 'disk_io'
-        # pp_data = psutil.disk_io_counters()
-        # if pp_data is not None:
-        #     pp_dict = pp_data._asdict()
-        #     for pp_key in pp_dict.keys():
-        #         python_data[tag + '.' + pp_key] = pp_dict[pp_key]
+        try:
+            tag = 'disk_io'
+            pp_data = psutil.disk_io_counters()
+            if pp_data is not None:
+                pp_dict = pp_data._asdict()
+                for pp_key in pp_dict.keys():
+                    python_data[tag + '.' + pp_key] = pp_dict[pp_key]
+        except:
+            err = 1
 
         # Net IO
         tag = 'net_io'

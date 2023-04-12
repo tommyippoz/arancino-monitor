@@ -1,7 +1,8 @@
 import time
+import argparse
 
 from arancinomonitor.ProbeManager import ProbeManager
-from arancinomonitor.utils import current_ms, store_observations
+from arancinomonitor.utils import store_observations, current_ms
 
 # Time between two system observations (in ms)
 OBS_INTERVAL = 1000
@@ -16,6 +17,12 @@ if __name__ == '__main__':
     """
     Main to test ARANCINO Probes
     """
+
+    # Parse Arguments
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument("-o", "--outfile", help="location of the output file")
+
+    args = argParser.parse_args()
 
     # Init ProbeManager and check available Probes
     pm = ProbeManager()
