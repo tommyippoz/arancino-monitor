@@ -28,24 +28,24 @@ if __name__ == '__main__':
                            help="location of the output file; default is 'test.csv' in the current folder")
     argParser.add_argument("-i", "--interval", type=int,
                            help="interval in ms between two observations; default is 1000 ms (1 sec)")
-    argParser.add_argument("-n", "--nobs",
+    argParser.add_argument("-n", "--nobs", type=int,
                            help="number of observations before stopping; default is 15")
-    argParser.add_argument("-w", "--wobs",
+    argParser.add_argument("-w", "--wobs", type=int,
                            help="number of observations to keep in RAM before saving to file; default is 10")
-    argParser.add_argument("-v", "--verbose",
+    argParser.add_argument("-v", "--verbose", type=int,
                            help="0 if all messages need to be suppressed, 2 if all have to be shown. "
                                 "1 displays base info")
     args = argParser.parse_args()
     if hasattr(args, 'outfile') and args.outfile is not None:
         FILENAME = args.outfile
     if hasattr(args, 'interval') and args.interval is not None:
-        OBS_INTERVAL = args.interval
+        OBS_INTERVAL = int(args.interval)
     if hasattr(args, 'nobs') and args.nobs is not None:
-        N_OBS = args.nobs
+        N_OBS = int(args.nobs)
     if hasattr(args, 'wobs') and args.wobs is not None:
-        STORE_INTERVAL = args.wobs
+        STORE_INTERVAL = int(args.wobs)
     if hasattr(args, 'verbose') and args.verbose is not None:
-        VERBOSE = args.verbose
+        VERBOSE = int(args.verbose)
 
     if VERBOSE > 0:
         print('---------------------------------------------------------------')
