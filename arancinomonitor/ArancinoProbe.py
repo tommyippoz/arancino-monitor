@@ -166,7 +166,7 @@ class PythonProbe(ArancinoProbe):
 
 class ScriptProbe(ArancinoProbe):
 
-    def __init__(self, command, command_params, tag):
+    def __init__(self, command: str, command_params: str, tag: str):
         """
         Constructor
         """
@@ -190,7 +190,7 @@ class ScriptProbe(ArancinoProbe):
         else:
             return None
 
-    def to_dict(self, cmd_string) -> dict:
+    def to_dict(self, cmd_string: str) -> dict:
         """
         Abstract method to parse command string
         :param cmd_string:
