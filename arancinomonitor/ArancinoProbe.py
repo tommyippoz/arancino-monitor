@@ -313,6 +313,86 @@ class VMInfoProbe(ScriptProbe):
         return "VMStat (" + str(self.n_indicators()) + ")"
 
 
+class TempProbe(ScriptProbe):
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        ScriptProbe.__init__(self, 'cat', '/sys/class/thermal/thermal_zone0/temp', 'temperature')
+
+    def to_dict(self, cmd_string) -> dict:
+        """
+        Abstract method to parse command string
+        :param cmd_string:
+        :return: the dict corresponding to the parsed string
+        """
+        if cmd_string is None or len(cmd_string) == 0:
+            return None
+        else:
+            return {'temperature': int(cmd_string)}
+
+    def describe(self) -> str:
+        """
+        Returns a string with details of this probe
+        :return: string description of the probe
+        """
+        return "Temperature (1)"
+
+
+class NetProbe(ScriptProbe):
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        ScriptProbe.__init__(self, 'cat', '/proc/net/dev', 'netinfo')
+
+    def to_dict(self, cmd_string) -> dict:
+        """
+        Abstract method to parse command string
+        :param cmd_string:
+        :return: the dict corresponding to the parsed string
+        """
+        if cmd_string is None or len(cmd_string) == 0:
+            return None
+        else:
+            if isinstance(cmd_string, bytes):
+                cmd_string = cmd_string.decode("utf-8")
+            cmd_split = cmd_string.split('\n')
+            cmd_dict = {}
+            for i in range(2, len(cmd_split)):
+                cmd_item = cmd_split[i]
+                if len(cmd_item.strip()) > 0:
+                    cmd_item = " ".join(cmd_item.split()).split(' ')
+                    if len(cmd_item) > 0:
+                        interface_name = cmd_item[0].replace(":", "").strip()
+                        cmd_dict[interface_name + ".rec.bytes"] = cmd_item[1].strip()
+                        cmd_dict[interface_name + ".rec.pkts"] = cmd_item[2].strip()
+                        cmd_dict[interface_name + ".rec.errs"] = cmd_item[3].strip()
+                        cmd_dict[interface_name + ".rec.drop"] = cmd_item[4].strip()
+                        cmd_dict[interface_name + ".rec.fifo"] = cmd_item[5].strip()
+                        cmd_dict[interface_name + ".rec.frame"] = cmd_item[6].strip()
+                        cmd_dict[interface_name + ".rec.compressed"] = cmd_item[7].strip()
+                        cmd_dict[interface_name + ".rec.multicast"] = cmd_item[8].strip()
+                        cmd_dict[interface_name + ".sent.bytes"] = cmd_item[9].strip()
+                        cmd_dict[interface_name + ".sent.pkts"] = cmd_item[10].strip()
+                        cmd_dict[interface_name + ".sent.errs"] = cmd_item[11].strip()
+                        cmd_dict[interface_name + ".sent.drop"] = cmd_item[12].strip()
+                        cmd_dict[interface_name + ".sent.fifo"] = cmd_item[13].strip()
+                        cmd_dict[interface_name + ".sent.frame"] = cmd_item[14].strip()
+                        cmd_dict[interface_name + ".sent.compressed"] = cmd_item[15].strip()
+                        cmd_dict[interface_name + ".sent.multicast"] = cmd_item[16].strip()
+            return cmd_dict
+
+    def describe(self) -> str:
+        """
+        Returns a string with details of this probe
+        :return: string description of the probe
+        """
+        return "NetProbe (" + str(self.n_indicators()) + ")"
+
+
 class RedisProbe(ScriptProbe):
 
     def __init__(self):

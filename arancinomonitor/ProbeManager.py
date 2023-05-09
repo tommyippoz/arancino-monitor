@@ -1,4 +1,5 @@
-from arancinomonitor.ArancinoProbe import PythonProbe, MemInfoProbe, IOStatProbe, VMInfoProbe, RedisProbe
+from arancinomonitor.ArancinoProbe import PythonProbe, MemInfoProbe, IOStatProbe, VMInfoProbe, RedisProbe, TempProbe, \
+    NetProbe
 from arancinomonitor.utils import current_ms
 
 
@@ -7,7 +8,7 @@ def get_all_probes():
     Returns a list of all ARANCINO probes (without checking for availability)
     :return: a list of probes
     """
-    probes_list = [RedisProbe(), VMInfoProbe(), PythonProbe(), MemInfoProbe(), IOStatProbe()]
+    probes_list = [NetProbe(), TempProbe(), RedisProbe(), VMInfoProbe(), PythonProbe(), MemInfoProbe(), IOStatProbe()]
     return probes_list
 
 
@@ -37,6 +38,7 @@ class ProbeManager:
         for probe in all_probes:
             if probe.can_read():
                 av_probes.append(probe)
+
         if verbose:
             print("%d probes are ready to be used in this system" % len(av_probes))
         if set_probes:
