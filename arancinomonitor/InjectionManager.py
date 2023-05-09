@@ -5,7 +5,7 @@ import threading
 import time
 
 from arancinomonitor.LoadInjector import SpinInjection, DiskStressInjection, CPUStressInjection, \
-    LoadInjector
+    LoadInjector, MemoryStressInjection
 from arancinomonitor.utils import current_ms
 
 
@@ -14,9 +14,10 @@ def get_all_injectors(inj_duration):
     Returns a list of all injectors (without checking for availability)
     :return: a list of injectors
     """
-    inj_list = [MemoryUsageInjection(duration_ms=inj_duration)]
-    #            SpinInjection(duration_ms=inj_duration),
-    #            MemoryUsageInjection(duration_ms=inj_duration)]
+    inj_list = [MemoryStressInjection(duration_ms=inj_duration),
+                CPUStressInjection(duration_ms=inj_duration),
+                DiskStressInjection(duration_ms=inj_duration),
+                SpinInjection(duration_ms=inj_duration)]
     return inj_list
 
 
@@ -77,7 +78,7 @@ class InjectionManager:
                 # If there is enough time before end of campaign
                 # If probability activates
                 if available_inj is None \
-                        and ((cycles - cycle_id)*cycle_ms > self.inj_duration) \
+                        and ((cycles - cycle_id - 1)*cycle_ms > self.inj_duration) \
                         and (random.randint(0, 999) / 999.0) <= self.error_rate:
                     # Randomly chooses an injector and performs injection
                     while available_inj is None:
@@ -110,8 +111,10 @@ class InjectionManager:
         :param verbose: True if debug information need to be shown
         Collects and outputs injections for this run
         """
-        if self.is_campaign_running():
-            print("Warning! Injection campaign is still running")
+        while self.is_campaign_running():
+            # This should not happen unless strange overhead happen
+            print("Warning! Injection campaign is still running, waiting 1 sec for it to finish")
+            time.sleep(1)
         if self.injections is None:
             self.injections = []
             for inj in self.injectors:

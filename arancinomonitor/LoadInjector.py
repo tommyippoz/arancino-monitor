@@ -59,7 +59,10 @@ class LoadInjector:
             if 'type' in job:
                 if job['type'] in {'Memory', 'RAM', 'MemoryUsage', 'Mem', 'MemoryStress'}:
                     return MemoryStressInjection.fromJSON(job)
-
+                if job['type'] in {'Disk', 'SSD', 'DiskMemoryUsage', 'DiskStress'}:
+                    return DiskStressInjection.fromJSON(job)
+                if job['type'] in {'CPU', 'Proc', 'CPUUsage', 'CPUStress'}:
+                    return CPUStressInjection.fromJSON(job)
         return None
 
 
@@ -150,7 +153,7 @@ class DiskStressInjection(LoadInjector):
 
     @classmethod
     def fromJSON(cls, job):
-        return DiskStressInjection(tag=(job['tag'] if hasattr(job, 'tag') else ''),
+        return DiskStressInjection(tag=(job['tag'] if 'tag' in job else ''),
                                    duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
                                    n_workers=(job['n_workers'] if 'n_workers' in job else 10),
                                    n_blocks=(job['n_blocks'] if 'n_blocks' in job else 10))
@@ -232,8 +235,8 @@ class MemoryStressInjection(LoadInjector):
         """
         Abstract method to be overridden
         """
-        return "[" + self.tag + "]MemoryStressInjection-" + str(self.items_for_loop) + "i-(d" + str(
-            self.duration_ms) + ")"
+        return "[" + self.tag + "]MemoryStressInjection(d" + str(self.duration_ms) + "-i" \
+               + str(self.items_for_loop) + ")"
 
     @classmethod
     def fromJSON(cls, job):
