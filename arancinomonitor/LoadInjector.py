@@ -1,5 +1,8 @@
+import signal
+import tempfile
 import threading
 import time
+from multiprocessing import Pool, Event, cpu_count
 
 from arancinomonitor.utils import current_ms
 
@@ -9,10 +12,11 @@ class LoadInjector:
     Abstract class for Injecting Errors in the System probes
     """
 
-    def __init__(self, duration_ms: float = 1000):
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
         """
         Constructor
         """
+        self.tag = tag
         self.duration_ms = duration_ms
         self.inj_thread = None
         self.completed_flag = True
@@ -47,18 +51,28 @@ class LoadInjector:
         """
         Abstract method to be overridden
         """
-        return "Injector" + "(d" + str(self.duration_ms) + ")"
+        return "[" + self.tag + "]Injector" + "(d" + str(self.duration_ms) + ")"
+
+    @classmethod
+    def fromJSON(cls, job):
+        if job is not None:
+            if 'type' in job:
+                if job['type'] in {'Memory', 'RAM', 'MemoryUsage', 'Mem', 'MemoryStress'}:
+                    return MemoryStressInjection.fromJSON(job)
+
+        return None
 
 
 class SpinInjection(LoadInjector):
     """
     SpinLoop Error
     """
-    def __init__(self, duration_ms: float = 1000):
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
         """
         Constructor
         """
-        LoadInjector.__init__(self, duration_ms)
+        LoadInjector.__init__(self, tag, duration_ms)
 
     def inject_body(self):
         """
@@ -77,21 +91,23 @@ class SpinInjection(LoadInjector):
         """
         Abstract method to be overridden
         """
-        return "SpinInjection" + "(d" + str(self.duration_ms) + ")"
+        return "[" + self.tag + "]SpinInjection" + "(d" + str(self.duration_ms) + ")"
 
 
-class MemoryAllocationInjection(LoadInjector):
+class DiskStressInjection(LoadInjector):
     """
-    Attempts to allocate the given amount of RAM to the running Python process.
-    param ram_to_allocate_mb: the amount of RAM in megabytes to allocate
+    DiskStress Error
     """
 
-    def __init__(self, duration_ms: float = 1000, ram_to_allocate_mb: int = 1000):
+    def __init__(self, tag: str = '', duration_ms: float = 1000, n_workers: int = 10,
+                 n_blocks: int = 10, rw_folder: str = './'):
         """
         Constructor
         """
-        LoadInjector.__init__(self, duration_ms)
-        self.ram_to_allocate_mb = ram_to_allocate_mb
+        self.n_workers = n_workers
+        self.n_blocks = n_blocks
+        self.rw_folder = rw_folder
+        LoadInjector.__init__(self, tag, duration_ms)
 
     def inject_body(self):
         """
@@ -99,40 +115,100 @@ class MemoryAllocationInjection(LoadInjector):
         """
         self.completed_flag = False
         start_time = current_ms()
-        self.stress_ram(1.0, start_time)
+        poold = []
+        poold_pool = Pool(self.n_workers)
+        poold_pool.map_async(self.stress_disk, range(self.n_workers))
+        poold.append(poold_pool)
+        sleep = Event()
+        sleep.set()
+        sleep.wait((self.duration_ms - (current_ms() - start_time)) / 1000.0)
+        if poold is not None:
+            for pool_disk in poold:
+                pool_disk.terminate()
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
         self.completed_flag = True
 
-    def stress_ram(self, mem_factor, start_time):
+    def stress_disk(self):
+        block_to_write = 'x' * 1048576
+        while True:
+            filehandle = tempfile.TemporaryFile(dir=self.rw_folder)
+            for _ in range(self.n_blocks):
+                filehandle.write(block_to_write)
+            filehandle.seek(0)
+            for _ in range(self.n_blocks):
+                content = filehandle.read(1048576)
+            filehandle.close()
+            del content
+            del filehandle
+
+    def get_name(self) -> str:
         """
-        Attempts to allocate the given amount of RAM to the running Python process.
-        param ram_to_allocate_mb: the amount of RAM in megabytes to allocate
+        Abstract method to be overridden
         """
-        try:
-            # Each element takes approx 8 bytes
-            # Multiply n by 1024**2 to convert from MB to Bytes
-            _ = [0] * int((((self.ram_to_allocate_mb * mem_factor) / 8) * (1024 ** 2)))
-            # This is just to keep the process running until halted
-            sleep_s = (start_time + self.inject_interval - current_ms()) / 1000.0
-            if sleep_s > 0:
-                time.sleep(self.inject_interval)
+        return "[" + self.tag + "]DiskStressInjection" + "(d" + str(self.duration_ms) + "-nw" + str(
+            self.n_workers) + ")"
 
-        except MemoryError:
-            # We didn't have enough RAM for our attempt, so we will recursively try
-            # smaller amounts 10% smaller at a time
-            self.stress_ram(int((self.ram_to_allocate_mb * mem_factor) * 0.9), start_time)
+    @classmethod
+    def fromJSON(cls, job):
+        return DiskStressInjection(tag=(job['tag'] if hasattr(job, 'tag') else ''),
+                                   duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
+                                   n_workers=(job['n_workers'] if 'n_workers' in job else 10),
+                                   n_blocks=(job['n_blocks'] if 'n_blocks' in job else 10))
 
 
-class MemoryUsageInjection(LoadInjector):
+class CPUStressInjection(LoadInjector):
     """
-    Loops and adds data to an array
+    CPUStress Error
     """
 
-    def __init__(self, duration_ms: float = 1000, items_for_loop: int = 1000):
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
         """
         Constructor
         """
-        LoadInjector.__init__(self, duration_ms)
+        LoadInjector.__init__(self, tag, duration_ms)
+
+    def inject_body(self):
+        """
+        Abstract method to be overridden
+        """
+        self.completed_flag = False
+        start_time = current_ms()
+        poolc = Pool(cpu_count())
+        poolc.map_async(self.stress_cpu, range(cpu_count()))
+        sleep = Event()
+        sleep.set()
+        sleep.wait((self.duration_ms - (current_ms() - start_time)) / 1000.0)
+        if poolc is not None:
+            poolc.terminate()
+        self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def stress_cpu(self, x: int = 1234):
+        while True:
+            x * x
+
+    def get_name(self) -> str:
+        """
+        Abstract method to be overridden
+        """
+        return "[" + self.tag + "]CPUStressInjection" + "(d" + str(self.duration_ms) + ")"
+
+    @classmethod
+    def fromJSON(cls, job):
+        return CPUStressInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                  duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000))
+
+
+class MemoryStressInjection(LoadInjector):
+    """
+    Loops and adds data to an array simulating memory usage
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000, items_for_loop: int = 1234567):
+        """
+        Constructor
+        """
+        LoadInjector.__init__(self, tag, duration_ms)
         self.items_for_loop = items_for_loop
 
     def inject_body(self):
@@ -156,5 +232,12 @@ class MemoryUsageInjection(LoadInjector):
         """
         Abstract method to be overridden
         """
-        return "MemoryUsageInjection-" + str(self.items_for_loop) + "i-(d" + str(self.duration_ms) + ")"
+        return "[" + self.tag + "]MemoryStressInjection-" + str(self.items_for_loop) + "i-(d" + str(
+            self.duration_ms) + ")"
 
+    @classmethod
+    def fromJSON(cls, job):
+        return MemoryStressInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                     duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
+                                     items_for_loop=(job['items_for_loop']
+                                                     if 'items_for_loop' in job else 1234567))

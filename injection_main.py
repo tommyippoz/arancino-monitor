@@ -1,4 +1,5 @@
 import csv
+import os.path
 import time
 import argparse
 
@@ -21,6 +22,10 @@ N_OBS = 15
 INJ_DURATION = 1000
 # injection rate (or supposed error rate)
 INJ_RATE = 0.5
+# injection rate (or supposed error rate)
+INJ_COOLDOWN = 5000
+# path to JSON file specifying injectors
+INJ_JSON = 'injectors_json.json'
 # verbosity level
 VERBOSE = 1
 
@@ -43,6 +48,10 @@ if __name__ == '__main__':
                            help="ms from beginning to end of an injection; default is 1000")
     argParser.add_argument("-ir", "--injrate", type=int,
                            help="error rate of injections into the system; default is 0.05")
+    argParser.add_argument("-ic", "--injcooldown", type=int,
+                           help="ms of cooldown after an injection (or minimum distance between injections; default is 5000")
+    argParser.add_argument("-ij", "--injjson", type=int,
+                           help="path to JSON file containing details of injectors; default is None")
     argParser.add_argument("-v", "--verbose", type=int,
                            help="0 if all messages need to be suppressed, 2 if all have to be shown. "
                                 "1 displays base info")
@@ -59,6 +68,10 @@ if __name__ == '__main__':
         INJ_DURATION = int(args.injdur)
     if hasattr(args, 'injrate') and args.injrate is not None:
         INJ_RATE = int(args.injrate)
+    if hasattr(args, 'injcooldown') and args.injcooldown is not None:
+        INJ_COOLDOWN = int(args.injcooldown)
+    if hasattr(args, 'injjson') and args.injjson is not None:
+        INJ_JSON = int(args.injjson)
     if hasattr(args, 'verbose') and args.verbose is not None:
         VERBOSE = int(args.verbose)
 
@@ -67,7 +80,8 @@ if __name__ == '__main__':
         print('Monitor executes with verbosity=%d, reads every %d ms and for %d times.\n'
               'Data will be saved in the CSV file \'%s\' every %d observations'
               % (VERBOSE, OBS_INTERVAL, N_OBS, FILENAME, STORE_INTERVAL))
-        print('Injector Detail: duration=%d, rate of %.3f' % (INJ_DURATION, INJ_RATE))
+        print('Injector Detail: duration=%dms, rate of %.3f, cooldown=%dms' %
+              (INJ_DURATION, INJ_RATE, INJ_COOLDOWN))
         print('---------------------------------------------------------------\n')
 
     # Init ProbeManager and check available Probes
@@ -79,8 +93,11 @@ if __name__ == '__main__':
             print('\t%s' % probe.describe())
 
     # Setup of the Injector
-    im = InjectionManager(inj_duration=INJ_DURATION, error_rate=INJ_RATE)
-    im.available_injectors()
+    im = InjectionManager(duration_ms=INJ_DURATION, error_rate=INJ_RATE, cooldown=INJ_COOLDOWN)
+    if INJ_JSON is None or not os.path.exists(INJ_JSON):
+        im.available_injectors()
+    else:
+        im.fromJSON(INJ_JSON, verbose=True)
     im.start_campaign(cycle_ms=OBS_INTERVAL, cycles=N_OBS, verbose=False)
 
     # Monitoring Process

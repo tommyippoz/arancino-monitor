@@ -1,0 +1,14 @@
+[{
+  "tag": "Disk_default",
+  "type": "Disk",
+  "n_workers": 10,
+  "n_blocks": 10
+  }, {
+  "tag": "CPU_default",
+  "type": "CPU"
+  }, {
+  "tag": "Memory_default",
+  "type":  "Memory",
+  "items_for_loop": 1234567
+  }
+]
