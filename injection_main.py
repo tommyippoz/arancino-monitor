@@ -25,7 +25,7 @@ INJ_RATE = 0.5
 # injection rate (or supposed error rate)
 INJ_COOLDOWN = 5000
 # path to JSON file specifying injectors
-INJ_JSON = 'input_files/injectors_json.json'
+INJ_JSON = 'input_files/injectors_test.json'
 # verbosity level
 VERBOSE = 1
 
@@ -129,11 +129,7 @@ if __name__ == '__main__':
     inj_log = im.collect_injections(VERBOSE)
     with open('output_files/demo_file.csv', 'w', newline='') as myFile:
         writer = csv.writer(myFile)
-        writer.writerow(['start', 'end', 'inj_name'])
+        keys = ['start', 'end', 'inj_name']
+        writer.writerow(keys)
         for dictionary in inj_log:
-            writer.writerow(dictionary.values())
-
-
-
-
-
+            writer.writerow([str(dictionary[d_key]) for d_key in keys])

@@ -1,9 +1,14 @@
 import multiprocessing
+import os.path
+import random
 import signal
 import tempfile
 import threading
 import time
+import urllib
+from urllib.error import URLError
 from multiprocessing import Pool, Event, cpu_count
+from urllib.request import urlopen
 
 from arancinomonitor.utils import current_ms
 
@@ -72,8 +77,10 @@ class LoadInjector:
                     return DiskStressInjection.fromJSON(job)
                 if job['type'] in {'CPU', 'Proc', 'CPUUsage', 'CPUStress'}:
                     return CPUStressInjection.fromJSON(job)
-                if job['type'] in {'Deadlock', 'Dl', 'Dead', 'CPUStress'}:
+                if job['type'] in {'Deadlock', 'Dl', 'Dead'}:
                     return DeadlockInjection.fromJSON(job)
+                if job['type'] in {'HTTP', 'HTTPRead', 'NetRead', 'WebRead', 'SiteRead'}:
+                    return HTTPReadInjection.fromJSON(job)
         return None
 
 
@@ -355,3 +362,70 @@ class DeadlockInjection(LoadInjector):
                                  duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
                                  n_threads=(job['n_threads'] if 'n_threads' in job else 2),
                                  n_locks=(job['n_locks'] if 'n_locks' in job else 1))
+
+
+class HTTPReadInjection(LoadInjector):
+    """
+    Reads data from HTTP urls
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000, parallel_reads: int = 1,
+                 sites_urls: list = ['www.google.com'], sites_csv: str = None):
+        """
+        Constructor
+        """
+        self.parallel_reads = parallel_reads
+        self.sites_urls = sites_urls
+        if sites_csv is not None and os.path.exists(sites_csv):
+            try:
+                with open(sites_csv, 'r') as fil:
+                    self.sites_urls = ['http://' + line.rstrip('\n') for line in fil]
+            except:
+                print("Sites file is not readable")
+        LoadInjector.__init__(self, tag, duration_ms)
+
+    def inject_body(self):
+        """
+        Abstract method to be overridden
+        """
+        self.completed_flag = False
+        start_time = current_ms()
+        http_readers = [multiprocessing.Process(target=self.url_reader,
+                                                args=(random.randint(0, len(self.sites_urls)-1), ))
+                        for _ in range(0, self.parallel_reads)]
+        for http_reader in http_readers:
+            http_reader.start()
+        time.sleep((self.duration_ms - current_ms() + start_time)/1000.0)
+        for http_reader in http_readers:
+            http_reader.terminate()
+        self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def url_reader(self, url_index: int = 0):
+        start_time = current_ms()
+        while True:
+            url_index = (url_index + 1) % len(self.sites_urls)
+            try:
+                with urlopen(self.sites_urls[url_index]) as f:
+                    my_str = f.read()
+            except:
+                my_str = "error"
+            if current_ms() - start_time > self.duration_ms:
+                break
+            else:
+                time.sleep(0.0001)
+
+    def get_name(self) -> str:
+        """
+        Abstract method to be overridden
+        """
+        return "[" + self.tag + "]HTTPReadInjection(d" + str(self.duration_ms) + "-r" \
+               + str(self.parallel_reads) + ")"
+
+    @classmethod
+    def fromJSON(cls, job):
+        return HTTPReadInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                 duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
+                                 parallel_reads=(job['parallel_reads'] if 'parallel_reads' in job else 1),
+                                 sites_urls=(job['sites_urls'] if 'sites_urls' in job else ['www.google.com']),
+                                 sites_csv=(job['sites_csv'] if 'sites_csv' in job else None))

@@ -1,6 +1,7 @@
 [{
-  "tag": "Deadlock_default",
-  "type":  "Deadlock",
-  "n_locks": 15
+  "tag": "HTTP",
+  "type":  "HTTPRead",
+  "parallel_reads": 1,
+  "sites_csv": "input_files/websites_urls.csv"
   }
 ]
