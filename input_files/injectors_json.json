@@ -10,5 +10,10 @@
   "tag": "Memory_default",
   "type":  "Memory",
   "items_for_loop": 1234567
+  }, {
+  "tag": "Deadlock_50_locks",
+  "type":  "Deadlock",
+  "n_locks": 50,
+  "n_threads": 3
   }
 ]

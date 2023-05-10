@@ -1,3 +1,4 @@
+import multiprocessing
 import signal
 import tempfile
 import threading
@@ -21,6 +22,14 @@ class LoadInjector:
         self.inj_thread = None
         self.completed_flag = True
         self.injected_interval = []
+        self.init()
+
+    def init(self):
+        """
+        Override needed only if the injector needs some pre-setup to be run. Default is an empty method
+        :return:
+        """
+        pass
 
     def inject_body(self):
         """
@@ -63,6 +72,8 @@ class LoadInjector:
                     return DiskStressInjection.fromJSON(job)
                 if job['type'] in {'CPU', 'Proc', 'CPUUsage', 'CPUStress'}:
                     return CPUStressInjection.fromJSON(job)
+                if job['type'] in {'Deadlock', 'Dl', 'Dead', 'CPUStress'}:
+                    return DeadlockInjection.fromJSON(job)
         return None
 
 
@@ -244,3 +255,103 @@ class MemoryStressInjection(LoadInjector):
                                      duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
                                      items_for_loop=(job['items_for_loop']
                                                      if 'items_for_loop' in job else 1234567))
+
+
+class DeadlockInjection(LoadInjector):
+    """
+    Creates deadlocks through reverse acquisitions of locks
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000, n_threads: int = 2, n_locks: int = 1):
+        """
+        Constructor
+        """
+        self.n_threads = n_threads
+        self.n_locks = n_locks
+        LoadInjector.__init__(self, tag, duration_ms)
+
+    def inject_body(self):
+        """
+        Abstract method to be overridden
+        """
+        self.completed_flag = False
+        start_time = current_ms()
+        deadlocks = [DeadlockInjection.DeadlockGroup(n_threads=self.n_threads) for i in range(0, self.n_locks)]
+        for dl in deadlocks:
+            dl.run()
+        while True:
+            # The 20 is because I am expecting to need some ms to terminate all processes
+            if current_ms() - start_time - 20 > self.duration_ms:
+                break
+        for dl in deadlocks:
+            dl.stop()
+        deadlocks = None
+        self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def get_name(self) -> str:
+        """
+        Abstract method to be overridden
+        """
+        return "[" + self.tag + "]DeadlockInjection" + "(d" + str(self.duration_ms) + "-t" \
+               + str(self.n_threads) + "-l" + str(self.n_locks) + ")"
+
+    class DeadlockGroup:
+        """
+        Service class that groups processes needed to create deadlock
+        """
+
+        def __init__(self, n_threads: int = 2):
+            if n_threads < 2:
+                n_threads = 2
+            self.n_threads = n_threads
+            self.l1 = threading.Lock()
+            self.l2 = threading.Lock()
+            self.threads = []
+
+        def run(self):
+            """
+            Runs threads and creates deadlock around the two locks
+            :return:
+            """
+            self.threads = []
+            self.threads.append(multiprocessing.Process(target=self.f1, args=['t1', ]))
+            self.threads.append(multiprocessing.Process(target=self.f2, args=['t2', ]))
+            for i in range(0, self.n_threads - 2):
+                self.threads.append(multiprocessing.Process(target=self.f_other, args=['t_other', ]))
+            for thr in self.threads:
+                thr.start()
+
+        def stop(self):
+            """
+            Stops deadlocking threads
+            :return:
+            """
+            for thr in self.threads:
+                thr.terminate()
+            self.l1 = None
+            self.l2 = None
+            self.threads = []
+
+        def f1(self, name):
+            with self.l1:
+                time.sleep(0.01)
+                with self.l2:
+                    time.sleep(0.001)
+
+        def f2(self, name):
+            with self.l2:
+                time.sleep(0.01)
+                with self.l1:
+                    time.sleep(0.01)
+
+        def f_other(self, name):
+            with self.l2:
+                time.sleep(0.01)
+
+    @classmethod
+    def fromJSON(cls, job):
+        return DeadlockInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                 duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
+                                 n_threads=(job['n_threads'] if 'n_threads' in job else 2),
+                                 n_locks=(job['n_locks'] if 'n_locks' in job else 1))

@@ -15,7 +15,7 @@ OBS_INTERVAL = 1000
 # Time between two accesses in memory for storing obs data
 STORE_INTERVAL = 10
 # File where saving monitored data
-FILENAME = "test.csv"
+FILENAME = "output_files/test.csv"
 # Maximum number of observations (-1 if infinite)
 N_OBS = 15
 # duration (ms) of an injection
@@ -25,7 +25,7 @@ INJ_RATE = 0.5
 # injection rate (or supposed error rate)
 INJ_COOLDOWN = 5000
 # path to JSON file specifying injectors
-INJ_JSON = 'injectors_json.json'
+INJ_JSON = 'input_files/injectors_json.json'
 # verbosity level
 VERBOSE = 1
 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
     # Retrieve Injections info
     inj_log = im.collect_injections(VERBOSE)
-    with open('demo_file.csv', 'w', newline='') as myFile:
+    with open('output_files/demo_file.csv', 'w', newline='') as myFile:
         writer = csv.writer(myFile)
         writer.writerow(['start', 'end', 'inj_name'])
         for dictionary in inj_log:

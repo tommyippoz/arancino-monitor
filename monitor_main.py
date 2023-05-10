@@ -11,7 +11,7 @@ OBS_INTERVAL = 1000
 # Time between two accesses in memory for storing obs data
 STORE_INTERVAL = 10
 # File where saving monitored data
-FILENAME = "test.csv"
+FILENAME = "output_files/test.csv"
 # Maximum number of observations (-1 if infinite)
 N_OBS = 15
 # verobsity level
