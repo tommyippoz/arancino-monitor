@@ -91,7 +91,7 @@ if __name__ == '__main__':
     INJ_FILENAME = FILENAME.replace('.csv', '') + '_inj_' + time_str + '.csv'
     FILENAME = FILENAME.replace('.csv', '') + '_' + time_str + '.csv'
 
-    # Init ProbeManager and check available Probes
+    # Initialize ProbeManager and check available Probes
     pm = ProbeManager()
     probes = pm.available_probes(verbose=False)
     if VERBOSE > 0:
