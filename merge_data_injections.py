@@ -67,6 +67,9 @@ if __name__ == '__main__':
                                        'tag': row[2].strip()})
         injections = sorted(injections, key=lambda d: d['start_time'])
 
+        if VERBOSE > 0:
+            print(str(len(injections)) + " injections were retrieved")
+
         # Opens output file
         with open(OUTPUT_FILE, 'w') as wrt_obj:
             csv_writer = writer(wrt_obj)
