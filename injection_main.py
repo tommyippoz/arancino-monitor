@@ -25,7 +25,7 @@ INJ_RATE = 0.5
 # injection rate (or supposed error rate)
 INJ_COOLDOWN = 5000
 # path to JSON file specifying injectors
-INJ_JSON = 'input_files/injectors_test.json'
+INJ_JSON = 'input_files/injectors_json.json'
 # verbosity level
 VERBOSE = 1
 
@@ -46,11 +46,11 @@ if __name__ == '__main__':
                            help="number of observations to keep in RAM before saving to file; default is 10")
     argParser.add_argument("-id", "--injdur", type=int,
                            help="ms from beginning to end of an injection; default is 1000")
-    argParser.add_argument("-ir", "--injrate", type=int,
+    argParser.add_argument("-ir", "--injrate", type=float,
                            help="error rate of injections into the system; default is 0.05")
     argParser.add_argument("-ic", "--injcooldown", type=int,
                            help="ms of cooldown after an injection (or minimum distance between injections; default is 5000")
-    argParser.add_argument("-ij", "--injjson", type=int,
+    argParser.add_argument("-ij", "--injjson", type=str,
                            help="path to JSON file containing details of injectors; default is None")
     argParser.add_argument("-v", "--verbose", type=int,
                            help="0 if all messages need to be suppressed, 2 if all have to be shown. "
@@ -67,11 +67,11 @@ if __name__ == '__main__':
     if hasattr(args, 'injdur') and args.injdur is not None:
         INJ_DURATION = int(args.injdur)
     if hasattr(args, 'injrate') and args.injrate is not None:
-        INJ_RATE = int(args.injrate)
+        INJ_RATE = float(args.injrate)
     if hasattr(args, 'injcooldown') and args.injcooldown is not None:
         INJ_COOLDOWN = int(args.injcooldown)
-    if hasattr(args, 'injjson') and args.injjson is not None:
-        INJ_JSON = int(args.injjson)
+    if hasattr(args, 'injjson') and args.injjson is not None and os.path.exists(args.injjson):
+        INJ_JSON = args.injjson
     if hasattr(args, 'verbose') and args.verbose is not None:
         VERBOSE = int(args.verbose)
 
