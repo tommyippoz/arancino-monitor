@@ -38,7 +38,7 @@ if __name__ == '__main__':
     if hasattr(args, 'monfile') and args.monfile is not None and os.path.exists(args.monfile):
         MONITOR_FILE = args.monfile
     if hasattr(args, 'injfile') and args.injfile is not None and os.path.exists(args.injfile):
-        MONITOR_FILE = args.monfile
+        INJECTIONS_FILE = args.injfile
     if hasattr(args, 'timetag') and args.timetag is not None:
         TIMESTAMP_TAG = args.timetag
     if hasattr(args, 'verbose') and args.verbose is not None:
