@@ -88,8 +88,8 @@ if __name__ == '__main__':
     # Update Filename
     time_str = str(datetime.datetime.fromtimestamp(current_ms() / 1000.0))
     time_str = time_str.split('.')[0].replace(' ', '_')
-    FILENAME = FILENAME.replace('.csv', '') + '_' + time_str + '.csv'
     INJ_FILENAME = FILENAME.replace('.csv', '') + '_inj_' + time_str + '.csv'
+    FILENAME = FILENAME.replace('.csv', '') + '_' + time_str + '.csv'
 
     # Init ProbeManager and check available Probes
     pm = ProbeManager()
