@@ -1,4 +1,5 @@
 import csv
+import datetime
 import os.path
 import time
 import argparse
@@ -84,6 +85,12 @@ if __name__ == '__main__':
               (INJ_DURATION, INJ_RATE, INJ_COOLDOWN))
         print('---------------------------------------------------------------\n')
 
+    # Update Filename
+    time_str = str(datetime.datetime.fromtimestamp(current_ms() / 1000.0))
+    time_str = time_str.split('.')[0].replace(' ', '_')
+    FILENAME = FILENAME.replace('.csv', '') + '_' + time_str + '.csv'
+    INJ_FILENAME = FILENAME.replace('.csv', '') + '_inj_' + time_str + '.csv'
+
     # Init ProbeManager and check available Probes
     pm = ProbeManager()
     probes = pm.available_probes(verbose=False)
@@ -127,7 +134,7 @@ if __name__ == '__main__':
 
     # Retrieve Injections info
     inj_log = im.collect_injections(VERBOSE)
-    with open('output_files/demo_file.csv', 'w', newline='') as myFile:
+    with open(INJ_FILENAME, 'w', newline='') as myFile:
         writer = csv.writer(myFile)
         keys = ['start', 'end', 'inj_name']
         writer.writerow(keys)

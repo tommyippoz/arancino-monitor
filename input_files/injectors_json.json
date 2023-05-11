@@ -1,4 +1,9 @@
 [{
+  "tag": "HTTP",
+  "type":  "HTTPRead",
+  "parallel_reads": 1,
+  "sites_csv": "input_files/websites_urls.csv"
+  }, {
   "tag": "Disk_default",
   "type": "Disk",
   "n_workers": 10,
