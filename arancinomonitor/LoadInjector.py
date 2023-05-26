@@ -10,6 +10,8 @@ from urllib.error import URLError
 from multiprocessing import Pool, Event, cpu_count
 from urllib.request import urlopen
 
+import redis
+
 from arancinomonitor.utils import current_ms
 
 
@@ -81,6 +83,10 @@ class LoadInjector:
                     return DeadlockInjection.fromJSON(job)
                 if job['type'] in {'HTTP', 'HTTPRead', 'NetRead', 'WebRead', 'SiteRead'}:
                     return HTTPReadInjection.fromJSON(job)
+                if job['type'] in {'Redis', 'RedisGet', 'redis', 'redisget', 'Redis-Get'}:
+                    return RedisStressInjection.fromJSON(job)
+                if job['type'] in {'RedisMem', 'RedisSet', 'redismem', 'redisset', 'Redis-Set', 'Redis-Mem'}:
+                    return RedisMemoryInjection.fromJSON(job)
         return None
 
 
@@ -391,11 +397,11 @@ class HTTPReadInjection(LoadInjector):
         self.completed_flag = False
         start_time = current_ms()
         http_readers = [multiprocessing.Process(target=self.url_reader,
-                                                args=(random.randint(0, len(self.sites_urls)-1), ))
+                                                args=(random.randint(0, len(self.sites_urls) - 1),))
                         for _ in range(0, self.parallel_reads)]
         for http_reader in http_readers:
             http_reader.start()
-        time.sleep((self.duration_ms - current_ms() + start_time)/1000.0)
+        time.sleep((self.duration_ms - current_ms() + start_time) / 1000.0)
         for http_reader in http_readers:
             http_reader.terminate()
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
@@ -429,3 +435,100 @@ class HTTPReadInjection(LoadInjector):
                                  parallel_reads=(job['parallel_reads'] if 'parallel_reads' in job else 1),
                                  sites_urls=(job['sites_urls'] if 'sites_urls' in job else ['www.google.com']),
                                  sites_csv=(job['sites_csv'] if 'sites_csv' in job else None))
+
+
+class RedisStressInjection(LoadInjector):
+    """
+    RedisStress with getters
+    """
+
+    def __init__(self, tag: str = '', n_workers: int = 2, duration_ms: float = 1000):
+        """
+        Constructor
+        """
+        LoadInjector.__init__(self, tag, duration_ms)
+        self.n_workers = n_workers
+        try:
+            self.redis_obj = redis.Redis()
+        except:
+            self.redis_obj = None
+            print('[Error] Could not connect with REDIS')
+
+    def inject_body(self):
+        """
+        Abstract method to be overridden
+        """
+        self.completed_flag = False
+        start_time = current_ms()
+        poolc = Pool(self.n_workers)
+        poolc.map_async(self.stress_redis, range(self.n_workers))
+        sleep = Event()
+        sleep.set()
+        sleep.wait((self.duration_ms - (current_ms() - start_time)) / 1000.0)
+        if poolc is not None:
+            poolc.terminate()
+        self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def stress_redis(self, x: str = 'T'):
+        while True:
+            if self.redis_obj is not None:
+                obj = self.redis_obj.get(x)
+
+    def get_name(self) -> str:
+        """
+        Abstract method to be overridden
+        """
+        return "[" + self.tag + "]RedisStressInjection" + "(d" + str(self.duration_ms) + \
+               "-w" + str(self.n_workers) + ")"
+
+    @classmethod
+    def fromJSON(cls, job):
+        return RedisStressInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                    duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
+                                    n_workers=(job['n_workers'] if 'n_workers' in job else 2))
+
+
+class RedisMemoryInjection(LoadInjector):
+    """
+    RedisStress with setters
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
+        """
+        Constructor
+        """
+        LoadInjector.__init__(self, tag, duration_ms)
+        try:
+            self.redis_obj = redis.Redis()
+        except:
+            self.redis_obj = None
+            print('[Error] Could not connect with REDIS')
+
+    def inject_body(self):
+        """
+        Abstract method to be overridden
+        """
+        self.completed_flag = False
+        start_time = current_ms()
+        tag_prequel = 'fake_tag'
+        i = 0
+        while True:
+            self.redis_obj.set(name=tag_prequel + '_' + str(i), value=123456789)
+            i = i + 1
+            if current_ms() - start_time > self.duration_ms:
+                break
+        self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.redis_obj.delete(*self.redis_obj.keys(tag_prequel + '*'))
+        self.completed_flag = True
+
+    def get_name(self) -> str:
+        """
+        Abstract method to be overridden
+        """
+        return "[" + self.tag + "]RedisMemoryInjection" + "(d" + str(self.duration_ms) + ")"
+
+    @classmethod
+    def fromJSON(cls, job):
+        return RedisMemoryInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                    duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000))

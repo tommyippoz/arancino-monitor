@@ -5,7 +5,7 @@ import threading
 import time
 
 from arancinomonitor.LoadInjector import SpinInjection, DiskStressInjection, CPUStressInjection, \
-    LoadInjector, MemoryStressInjection
+    LoadInjector, MemoryStressInjection, RedisStressInjection
 from arancinomonitor.utils import current_ms
 
 
@@ -17,7 +17,8 @@ def get_all_injectors(inj_duration):
     inj_list = [MemoryStressInjection(duration_ms=inj_duration),
                 CPUStressInjection(duration_ms=inj_duration),
                 DiskStressInjection(duration_ms=inj_duration),
-                SpinInjection(duration_ms=inj_duration)]
+                SpinInjection(duration_ms=inj_duration),
+                RedisStressInjection(duration_ms=inj_duration)]
     return inj_list
 
 

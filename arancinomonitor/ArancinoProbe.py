@@ -1,5 +1,6 @@
 import subprocess
 import psutil
+import redis
 
 
 class ArancinoProbe:
@@ -393,38 +394,85 @@ class NetProbe(ScriptProbe):
         return "NetProbe (" + str(self.n_indicators()) + ")"
 
 
-class RedisProbe(ScriptProbe):
+class RedisDataProbe(ScriptProbe):
 
     def __init__(self):
         """
         Constructor
         """
-        ScriptProbe.__init__(self, 'redis-cli', 'mget T H P', 'redis')
+        try:
+            self.redis_obj = redis.Redis()
+        except:
+            self.redis_obj = None
+        ArancinoProbe.__init__(self)
 
-    def to_dict(self, cmd_string) -> dict:
+    def read_data(self) -> dict:
         """
-        Abstract method to parse command string
-        :param cmd_string:
-        :return: the dict corresponding to the parsed string
+        Reads probe data
+        :return: a dictionary, or None if execution fails
         """
-        if cmd_string is None or len(cmd_string) == 0:
-            return None
+        if self.redis_obj is not None:
+            redis_dict = {'redis.T': self.redis_obj.get('T'),
+                          'redis.H': self.redis_obj.get('H'),
+                          'redis.P': self.redis_obj.get('P')}
+            return redis_dict
         else:
-            if isinstance(cmd_string, bytes):
-                cmd_string = cmd_string.decode("utf-8")
-            cmd_split = cmd_string.split('\n')
-            cmd_dict = {}
-            cmd_tags = ['T', 'H', 'P']
-            for i in range(3):
-                cmd_item = cmd_split[i]
-                if len(cmd_item) > 0:
-                    cmd_dict[cmd_tags[i]] = cmd_item.split(' ')[0].strip().replace('"', '')
-                    
-            return cmd_dict
+            return None
+
+    def can_read(self) -> bool:
+        """
+        Returns a flag that tells if probe can read data from the system
+        :return: True is probe can read (is available to be used)
+        """
+        return self.redis_obj is not None
 
     def describe(self) -> str:
         """
         Returns a string with details of this probe
         :return: string description of the probe
         """
-        return "Redis (" + str(self.n_indicators()) + ")"
+        return "RedisData (" + str(self.n_indicators()) + ")"
+
+
+class RedisInfoProbe(ArancinoProbe):
+
+    def __init__(self):
+        """
+        Constructor
+        """
+        try:
+            self.redis_obj = redis.Redis()
+        except:
+            self.redis_obj = None
+        ArancinoProbe.__init__(self)
+
+    def describe(self) -> str:
+        """
+        Returns a string with details of this probe
+        :return: string description of the probe
+        """
+        return "RedisInfo Probe (" + str(self.n_indicators()) + ")"
+
+    def read_data(self) -> dict:
+        """
+        Reads probe data
+        :return: a dictionary, or None if execution fails
+        """
+        if self.redis_obj is not None:
+            redis_dict = self.redis_obj.info()
+            if redis_dict is not None:
+                for k in list(redis_dict.keys()):
+                    if (not k.startswith('used_')) and (not k.startswith('active_')):
+                        del redis_dict[k]
+                redis_dict = {('redis_' + key): value for key, value in redis_dict.items()}
+                redis_dict['redis_active_keys'] = str(len(self.redis_obj.keys('*')))
+            return redis_dict
+        else:
+            return None
+
+    def can_read(self) -> bool:
+        """
+        Returns a flag that tells if probe can read data from the system
+        :return: True is probe can read (is available to be used)
+        """
+        return self.redis_obj is not None

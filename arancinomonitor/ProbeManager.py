@@ -1,5 +1,5 @@
-from arancinomonitor.ArancinoProbe import PythonProbe, MemInfoProbe, IOStatProbe, VMInfoProbe, RedisProbe, TempProbe, \
-    NetProbe
+from arancinomonitor.ArancinoProbe import PythonProbe, MemInfoProbe, IOStatProbe, VMInfoProbe, TempProbe, \
+    NetProbe, RedisInfoProbe, RedisDataProbe
 from arancinomonitor.utils import current_ms
 
 
@@ -8,7 +8,8 @@ def get_all_probes():
     Returns a list of all ARANCINO probes (without checking for availability)
     :return: a list of probes
     """
-    probes_list = [NetProbe(), TempProbe(), RedisProbe(), VMInfoProbe(), PythonProbe(), MemInfoProbe(), IOStatProbe()]
+    probes_list = [NetProbe(), TempProbe(), RedisDataProbe(), VMInfoProbe(),
+                   PythonProbe(), MemInfoProbe(), IOStatProbe(), RedisInfoProbe()]
     return probes_list
 
 

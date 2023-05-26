@@ -20,5 +20,12 @@
   "type":  "Deadlock",
   "n_locks": 50,
   "n_threads": 3
+  }, {
+  "tag": "RedisGet",
+  "type":  "Redis",
+  "n_workers": 10
+  }, {
+  "tag": "Redis Generate Vars",
+  "type":  "RedisSet"
   }
 ]
