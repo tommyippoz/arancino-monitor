@@ -26,7 +26,7 @@ INJ_RATE = 0.5
 # injection rate (or supposed error rate)
 INJ_COOLDOWN = 5000
 # path to JSON file specifying injectors
-INJ_JSON = 'input_files/injectors_json.json'
+INJ_JSON = 'input_files/injectors_test.json'
 # verbosity level
 VERBOSE = 1
 

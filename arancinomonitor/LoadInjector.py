@@ -2,6 +2,7 @@ import multiprocessing
 import os.path
 import random
 import signal
+import subprocess
 import tempfile
 import threading
 import time
@@ -87,6 +88,8 @@ class LoadInjector:
                     return RedisStressInjection.fromJSON(job)
                 if job['type'] in {'RedisMem', 'RedisSet', 'redismem', 'redisset', 'Redis-Set', 'Redis-Mem'}:
                     return RedisMemoryInjection.fromJSON(job)
+                if job['type'] in {'StopProcess', 'Process'}:
+                    return ProcessHangInjection.fromJSON(job)
         return None
 
 
@@ -532,3 +535,83 @@ class RedisMemoryInjection(LoadInjector):
     def fromJSON(cls, job):
         return RedisMemoryInjection(tag=(job['tag'] if 'tag' in job else ''),
                                     duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000))
+
+
+class ProcessHangInjection(LoadInjector):
+    """
+    Pauses a process for a timeframe
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000, process_name: str = 'arancino'):
+        """
+        Constructor
+        """
+        LoadInjector.__init__(self, tag, duration_ms)
+        if self.exists_process(process_name):
+            self.process_name = process_name
+        else:
+            self.process_name = None
+            print('[Error] Could not find service %s' % process_name)
+
+    def exists_process(self, pname):
+        if pname is not None:
+            cmd_out = subprocess.check_output(['pidof', pname])
+            cmd_out = cmd_out.decode('utf-8')
+            return cmd_out is not None and len(cmd_out) > 0
+        else:
+            return False
+
+    def inject_body(self):
+        """
+        Abstract method to be overridden
+        """
+        self.completed_flag = False
+        if self.process_name is not None:
+            start_time = current_ms()
+            subprocess.check_output(['pkill', '-STOP', self.process_name])
+            time.sleep(self.duration_ms - (current_ms() - start_time))
+            subprocess.check_output(['pkill', '-CONT', self.process_name])
+            self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        else:
+            time.sleep(self.duration_ms)
+        self.completed_flag = True
+
+    def get_name(self) -> str:
+        """
+        Abstract method to be overridden
+        """
+        return "[" + self.tag + "]ProcessHangInjection" + "(d" + str(self.duration_ms) + \
+               "-n" + str(self.process_name) + ")"
+
+    @classmethod
+    def fromJSON(cls, job):
+        return ProcessHangInjection(tag=(job['tag'] if 'tag' in job else ''),
+                                    duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
+                                    process_name=(job['process_name'] if 'process_name' in job else 'arancino'))
+
+
+class ArancinoHangInjection(ProcessHangInjection):
+    """
+    Pauses a process for a timeframe
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
+        ProcessHangInjection.__init__(self, tag, duration_ms, 'arancino')
+
+
+class NodeRedHangInjection(ProcessHangInjection):
+    """
+    Pauses a process for a timeframe
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
+        ProcessHangInjection.__init__(self, tag, duration_ms, 'node-red')
+
+
+class RedisServerHangInjection(ProcessHangInjection):
+    """
+    Pauses a process for a timeframe
+    """
+
+    def __init__(self, tag: str = '', duration_ms: float = 1000):
+        ProcessHangInjection.__init__(self, tag, duration_ms, 'redis-server')

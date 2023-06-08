@@ -1,7 +1,6 @@
 [{
-  "tag": "HTTP",
-  "type":  "HTTPRead",
-  "parallel_reads": 1,
-  "sites_csv": "input_files/websites_urls.csv"
+  "tag": "ChromeStop",
+  "type":  "Process",
+  "process_name": "chrome"
   }
 ]
