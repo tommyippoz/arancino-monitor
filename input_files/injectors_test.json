@@ -1,5 +1,5 @@
 [{
-  "tag": "ChromeStop",
+  "tag": "Chrome Stop",
   "type":  "Process",
   "process_name": "chrome"
   }
