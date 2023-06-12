@@ -571,7 +571,7 @@ class ProcessHangInjection(LoadInjector):
             print('stopping process ')
             subprocess.check_output(['pkill', '-STOP', self.process_name])
             time.sleep(self.duration_ms - (current_ms() - start_time))
-            print('resuming process')
+            print('resuming process ')
             subprocess.check_output(['pkill', '-CONT', self.process_name])
             self.injected_interval.append({'start': start_time, 'end': current_ms()})
         else:
