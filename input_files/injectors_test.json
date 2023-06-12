@@ -1,6 +1,6 @@
 [{
-  "tag": "Chrome Stop ",
+  "tag": "Test Stop ",
   "type":  "Process",
-  "process_name": "chrome"
+  "process_name": "arancino"
   }
 ]

@@ -569,11 +569,20 @@ class ProcessHangInjection(LoadInjector):
         if self.process_name is not None:
             start_time = current_ms()
             print('stopping process ')
-            subprocess.check_output(['pkill', '-STOP', self.process_name])
-            time.sleep(self.duration_ms - (current_ms() - start_time))
-            print('resuming process ')
-            subprocess.check_output(['pkill', '-CONT', self.process_name])
-            self.injected_interval.append({'start': start_time, 'end': current_ms()})
+            try:
+                subprocess.check_output(['pkill', '-STOP', self.process_name])
+                while True:
+                    if current_ms() - start_time >= self.duration_ms:
+                        break
+                print('resuming process ')
+                subprocess.check_output(['pkill', '-CONT', self.process_name])
+                self.injected_interval.append({'start': start_time, 'end': current_ms()})
+            except:
+                print('cant stop the process')
+                subprocess.check_output(['pkill', '-CONT', self.process_name])
+                while True:
+                    if current_ms() - start_time >= self.duration_ms:
+                        break
         else:
             time.sleep(self.duration_ms)
         self.completed_flag = True

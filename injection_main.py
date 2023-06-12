@@ -90,6 +90,8 @@ if __name__ == '__main__':
     time_str = time_str.split('.')[0].replace(' ', '_')
     INJ_FILENAME = FILENAME.replace('.csv', '') + '_inj_' + time_str + '.csv'
     FILENAME = FILENAME.replace('.csv', '') + '_' + time_str + '.csv'
+    if not os.path.exists(os.path.dirname(FILENAME)):
+        os.makedirs(os.path.dirname(FILENAME))
 
     # Initialize ProbeManager and check available Probes
     pm = ProbeManager()
