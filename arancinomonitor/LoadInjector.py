@@ -555,7 +555,7 @@ class ProcessHangInjection(LoadInjector):
 
     def exists_process(self, pname):
         if pname is not None:
-            cmd_out = subprocess.check_output(['pidof', pname])
+            cmd_out = subprocess.check_output(['pgrep', pname])
             cmd_out = cmd_out.decode('utf-8')
             return cmd_out is not None and len(cmd_out) > 0
         else:
@@ -568,8 +568,10 @@ class ProcessHangInjection(LoadInjector):
         self.completed_flag = False
         if self.process_name is not None:
             start_time = current_ms()
+            print('stopping process')
             subprocess.check_output(['pkill', '-STOP', self.process_name])
             time.sleep(self.duration_ms - (current_ms() - start_time))
+            print('resuming process')
             subprocess.check_output(['pkill', '-CONT', self.process_name])
             self.injected_interval.append({'start': start_time, 'end': current_ms()})
         else:
