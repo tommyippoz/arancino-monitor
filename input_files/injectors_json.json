@@ -27,5 +27,9 @@
   }, {
   "tag": "Redis Generate Vars",
   "type":  "RedisSet"
+  }, {
+  "tag": "Arancino Service Stop",
+  "type":  "Process",
+  "process_name": "arancino"
   }
 ]

@@ -1,6 +1,6 @@
 [{
-  "tag": "Test Stop ",
-  "type":  "Process",
-  "process_name": "arancino"
+  "tag": "RedisGet",
+  "type":  "Redis",
+  "n_workers": 10
   }
 ]
