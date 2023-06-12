@@ -568,7 +568,7 @@ class ProcessHangInjection(LoadInjector):
         self.completed_flag = False
         if self.process_name is not None:
             start_time = current_ms()
-            print('stopping process')
+            print('stopping process ')
             subprocess.check_output(['pkill', '-STOP', self.process_name])
             time.sleep(self.duration_ms - (current_ms() - start_time))
             print('resuming process')
