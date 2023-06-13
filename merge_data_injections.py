@@ -3,21 +3,21 @@ import os.path
 import sys
 from _csv import reader, writer
 
-# Name of the file containing monitored data
-MONITOR_FILE = None
-# Name of the file containing injections
-INJECTIONS_FILE = None
-# Name of the output file
-OUTPUT_FILE = 'monitor_labeled.csv'
-# Tag of the timestamp
-TIMESTAMP_TAG = 'timestamp'
-# verbosity level
-VERBOSE = 1
-
-if __name__ == '__main__':
+def main(my_args):
     """
     Main to merge monitored data and injections data
     """
+
+    # Name of the file containing monitored data
+    MONITOR_FILE = None
+    # Name of the file containing injections
+    INJECTIONS_FILE = None
+    # Name of the output file
+    OUTPUT_FILE = 'monitor_labeled.csv'
+    # Tag of the timestamp
+    TIMESTAMP_TAG = 'timestamp'
+    # verbosity level
+    VERBOSE = 1
 
     # Parse Arguments
     argParser = argparse.ArgumentParser()
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     argParser.add_argument("-v", "--verbose", type=int,
                            help="0 if all messages need to be suppressed, 2 if all have to be shown. "
                                 "1 displays base info")
-    args = argParser.parse_args()
+    args = argParser.parse_args(my_args)
     if hasattr(args, 'outfile') and args.outfile is not None and os.path.exists(os.path.dirname(args.outfile)):
         OUTPUT_FILE = args.outfile
     if hasattr(args, 'monfile') and args.monfile is not None and os.path.exists(args.monfile):
@@ -114,3 +114,7 @@ if __name__ == '__main__':
                                 row.append(anomaly_tag)
                                 csv_writer.writerow(row)
 
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])

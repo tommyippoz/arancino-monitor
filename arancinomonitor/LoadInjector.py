@@ -25,12 +25,16 @@ class LoadInjector:
         """
         Constructor
         """
+        self.valid = True
         self.tag = tag
         self.duration_ms = duration_ms
         self.inj_thread = None
         self.completed_flag = True
         self.injected_interval = []
         self.init()
+
+    def is_valid(self):
+        return self.valid
 
     def init(self):
         """
@@ -57,6 +61,12 @@ class LoadInjector:
         True if the injector has finished working (end of the 'injection_body' function)
         """
         return not self.completed_flag
+    
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        pass
 
     def get_injections(self) -> list:
         """
@@ -103,6 +113,7 @@ class SpinInjection(LoadInjector):
         Constructor
         """
         LoadInjector.__init__(self, tag, duration_ms)
+        self.force_stop = False
 
     def inject_body(self):
         """
@@ -111,11 +122,18 @@ class SpinInjection(LoadInjector):
         self.completed_flag = False
         start_time = current_ms()
         while True:
-            if current_ms() - start_time > self.duration_ms:
+            if current_ms() - start_time > self.duration_ms or self.force_stop:
                 break
 
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
         self.completed_flag = True
+        self.force_stop = False
+        
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        self.force_stop = True
 
     def get_name(self) -> str:
         """
@@ -137,6 +155,7 @@ class DiskStressInjection(LoadInjector):
         self.n_workers = n_workers
         self.n_blocks = n_blocks
         self.rw_folder = rw_folder
+        self.poold = None
         LoadInjector.__init__(self, tag, duration_ms)
 
     def inject_body(self):
@@ -145,17 +164,24 @@ class DiskStressInjection(LoadInjector):
         """
         self.completed_flag = False
         start_time = current_ms()
-        poold = []
+        self.poold = []
         poold_pool = Pool(self.n_workers)
         poold_pool.map_async(self.stress_disk, range(self.n_workers))
-        poold.append(poold_pool)
-        sleep = Event()
-        sleep.set()
-        sleep.wait((self.duration_ms - (current_ms() - start_time)) / 1000.0)
-        if poold is not None:
-            for pool_disk in poold:
+        self.poold.append(poold_pool)
+        time.sleep((self.duration_ms - (current_ms() - start_time)) / 1000.0)
+        if self.poold is not None:
+            for pool_disk in self.poold:
                 pool_disk.terminate()
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        if self.poold is not None:
+            for pool_disk in self.poold:
+                pool_disk.terminate()
         self.completed_flag = True
 
     def stress_disk(self):
@@ -195,6 +221,7 @@ class CPUStressInjection(LoadInjector):
         """
         Constructor
         """
+        self.poolc = None
         LoadInjector.__init__(self, tag, duration_ms)
 
     def inject_body(self):
@@ -203,14 +230,20 @@ class CPUStressInjection(LoadInjector):
         """
         self.completed_flag = False
         start_time = current_ms()
-        poolc = Pool(cpu_count())
-        poolc.map_async(self.stress_cpu, range(cpu_count()))
-        sleep = Event()
-        sleep.set()
-        sleep.wait((self.duration_ms - (current_ms() - start_time)) / 1000.0)
-        if poolc is not None:
-            poolc.terminate()
+        self.poolc = Pool(cpu_count())
+        self.poolc.map_async(self.stress_cpu, range(cpu_count()))
+        time.sleep((self.duration_ms - (current_ms() - start_time)) / 1000.0)
+        if self.poolc is not None:
+            self.poolc.terminate()
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        if self.poolc is not None:
+            self.poolc.terminate()
         self.completed_flag = True
 
     def stress_cpu(self, x: int = 1234):
@@ -240,6 +273,7 @@ class MemoryStressInjection(LoadInjector):
         """
         LoadInjector.__init__(self, tag, duration_ms)
         self.items_for_loop = items_for_loop
+        self.force_stop = False
 
     def inject_body(self):
         """
@@ -250,13 +284,20 @@ class MemoryStressInjection(LoadInjector):
         my_list = []
         while True:
             my_list.append([999 for i in range(0, self.items_for_loop)])
-            if current_ms() - start_time > self.duration_ms:
+            if current_ms() - start_time > self.duration_ms or self.force_stop:
                 break
             else:
                 time.sleep(0.001)
 
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
         self.completed_flag = True
+        self.force_stop = False
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        self.force_stop = True
 
     def get_name(self) -> str:
         """
@@ -284,6 +325,7 @@ class DeadlockInjection(LoadInjector):
         """
         self.n_threads = n_threads
         self.n_locks = n_locks
+        self.force_stop = False
         LoadInjector.__init__(self, tag, duration_ms)
 
     def inject_body(self):
@@ -297,13 +339,20 @@ class DeadlockInjection(LoadInjector):
             dl.run()
         while True:
             # The 20 is because I am expecting to need some ms to terminate all processes
-            if current_ms() - start_time - 20 > self.duration_ms:
+            if current_ms() - start_time - 20 > self.duration_ms or self.force_stop:
                 break
         for dl in deadlocks:
             dl.stop()
         deadlocks = None
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
         self.completed_flag = True
+        self.force_stop = False
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        self.force_stop = True
 
     def get_name(self) -> str:
         """
@@ -391,6 +440,7 @@ class HTTPReadInjection(LoadInjector):
                     self.sites_urls = ['http://' + line.rstrip('\n') for line in fil]
             except:
                 print("Sites file is not readable")
+        self.http_readers = None
         LoadInjector.__init__(self, tag, duration_ms)
 
     def inject_body(self):
@@ -399,15 +449,24 @@ class HTTPReadInjection(LoadInjector):
         """
         self.completed_flag = False
         start_time = current_ms()
-        http_readers = [multiprocessing.Process(target=self.url_reader,
+        self.http_readers = [multiprocessing.Process(target=self.url_reader,
                                                 args=(random.randint(0, len(self.sites_urls) - 1),))
                         for _ in range(0, self.parallel_reads)]
-        for http_reader in http_readers:
+        for http_reader in self.http_readers:
             http_reader.start()
         time.sleep((self.duration_ms - current_ms() + start_time) / 1000.0)
-        for http_reader in http_readers:
+        for http_reader in self.http_readers:
             http_reader.terminate()
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        if self.http_readers is not None:
+            for http_reader in self.http_readers:
+                http_reader.terminate()
         self.completed_flag = True
 
     def url_reader(self, url_index: int = 0):
@@ -456,6 +515,7 @@ class RedisStressInjection(LoadInjector):
         except:
             self.redis_obj = None
             print('[Error] Could not connect with REDIS')
+        self.poolc = None
 
     def inject_body(self):
         """
@@ -463,14 +523,20 @@ class RedisStressInjection(LoadInjector):
         """
         self.completed_flag = False
         start_time = current_ms()
-        poolc = Pool(self.n_workers)
-        poolc.map_async(self.stress_redis, range(self.n_workers))
-        sleep = Event()
-        sleep.set()
-        sleep.wait((self.duration_ms - (current_ms() - start_time)) / 1000.0)
-        if poolc is not None:
-            poolc.terminate()
+        self.poolc = Pool(self.n_workers)
+        self.poolc.map_async(self.stress_redis, range(self.n_workers))
+        time.sleep((self.duration_ms - (current_ms() - start_time))/1000.0)
+        if self.poolc is not None:
+            self.poolc.terminate()
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
+        self.completed_flag = True
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        if self.poolc is not None:
+            self.poolc.terminate()
         self.completed_flag = True
 
     def stress_redis(self, x: str = 'T'):
@@ -507,6 +573,7 @@ class RedisMemoryInjection(LoadInjector):
         except:
             self.redis_obj = None
             print('[Error] Could not connect with REDIS')
+        self.force_stop = False
 
     def inject_body(self):
         """
@@ -519,11 +586,18 @@ class RedisMemoryInjection(LoadInjector):
         while True:
             self.redis_obj.set(name=tag_prequel + '_' + str(i), value=123456789)
             i = i + 1
-            if current_ms() - start_time > self.duration_ms:
+            if current_ms() - start_time > self.duration_ms or self.force_stop:
                 break
         self.injected_interval.append({'start': start_time, 'end': current_ms()})
         self.redis_obj.delete(*self.redis_obj.keys(tag_prequel + '*'))
         self.completed_flag = True
+        self.force_stop = False
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        self.force_stop = True
 
     def get_name(self) -> str:
         """
@@ -552,12 +626,17 @@ class ProcessHangInjection(LoadInjector):
         else:
             self.process_name = None
             print('[Error] Could not find service %s' % process_name)
+            self.valid = False
+        self.force_stop = False
 
     def exists_process(self, pname):
         if pname is not None:
-            cmd_out = subprocess.check_output(['pgrep', pname])
-            cmd_out = cmd_out.decode('utf-8')
-            return cmd_out is not None and len(cmd_out) > 0
+            try:
+                cmd_out = subprocess.check_output(['pgrep', pname])
+                cmd_out = cmd_out.decode('utf-8')
+                return cmd_out is not None and len(cmd_out) > 0
+            except:
+                return False
         else:
             return False
 
@@ -571,7 +650,7 @@ class ProcessHangInjection(LoadInjector):
             try:
                 subprocess.check_output(['pkill', '-STOP', self.process_name])
                 while True:
-                    if current_ms() - start_time >= self.duration_ms:
+                    if current_ms() - start_time >= self.duration_ms or self.force_stop:
                         break
                 subprocess.check_output(['pkill', '-CONT', self.process_name])
                 self.injected_interval.append({'start': start_time, 'end': current_ms()})
@@ -581,8 +660,15 @@ class ProcessHangInjection(LoadInjector):
                     if current_ms() - start_time >= self.duration_ms:
                         break
         else:
-            time.sleep(self.duration_ms)
+            time.sleep(self.duration_ms / 1000.0)
         self.completed_flag = True
+        self.force_stop = False
+
+    def force_close(self):
+        """
+        Try to force-close the injector
+        """
+        self.force_stop = True
 
     def get_name(self) -> str:
         """
@@ -596,30 +682,3 @@ class ProcessHangInjection(LoadInjector):
         return ProcessHangInjection(tag=(job['tag'] if 'tag' in job else ''),
                                     duration_ms=(job['duration_ms'] if 'duration_ms' in job else 1000),
                                     process_name=(job['process_name'] if 'process_name' in job else 'arancino'))
-
-
-class ArancinoHangInjection(ProcessHangInjection):
-    """
-    Pauses a process for a timeframe
-    """
-
-    def __init__(self, tag: str = '', duration_ms: float = 1000):
-        ProcessHangInjection.__init__(self, tag, duration_ms, 'arancino')
-
-
-class NodeRedHangInjection(ProcessHangInjection):
-    """
-    Pauses a process for a timeframe
-    """
-
-    def __init__(self, tag: str = '', duration_ms: float = 1000):
-        ProcessHangInjection.__init__(self, tag, duration_ms, 'node-red')
-
-
-class RedisServerHangInjection(ProcessHangInjection):
-    """
-    Pauses a process for a timeframe
-    """
-
-    def __init__(self, tag: str = '', duration_ms: float = 1000):
-        ProcessHangInjection.__init__(self, tag, duration_ms, 'redis-server')

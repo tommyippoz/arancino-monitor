@@ -1,6 +1,8 @@
 import csv
 import datetime
 import os.path
+import random
+import threading
 import time
 import argparse
 
@@ -24,11 +26,14 @@ INJ_DURATION = 1000
 # injection rate (or supposed error rate)
 INJ_RATE = 0.5
 # injection rate (or supposed error rate)
-INJ_COOLDOWN = 5000
+INJ_COOLDOWN = 1000
 # path to JSON file specifying injectors
-INJ_JSON = 'input_files/injectors_test.json'
+INJ_JSON = 'input_files/injectors_json.json'
 # verbosity level
 VERBOSE = 1
+# if injections have to be merged with monitored data
+MERGE_FILES = True
+
 
 if __name__ == '__main__':
     """
@@ -53,6 +58,8 @@ if __name__ == '__main__':
                            help="ms of cooldown after an injection (or minimum distance between injections; default is 5000")
     argParser.add_argument("-ij", "--injjson", type=str,
                            help="path to JSON file containing details of injectors; default is None")
+    argParser.add_argument("-mf", "--mergefiles", type=bool,
+                           help="True if features and injections have to be merged at the end; default is True")
     argParser.add_argument("-v", "--verbose", type=int,
                            help="0 if all messages need to be suppressed, 2 if all have to be shown. "
                                 "1 displays base info")
@@ -73,6 +80,8 @@ if __name__ == '__main__':
         INJ_COOLDOWN = int(args.injcooldown)
     if hasattr(args, 'injjson') and args.injjson is not None and os.path.exists(args.injjson):
         INJ_JSON = args.injjson
+    if hasattr(args, 'mergefiles') and args.injjson is not None:
+        MERGE_FILES = args.mergefiles
     if hasattr(args, 'verbose') and args.verbose is not None:
         VERBOSE = int(args.verbose)
 
@@ -107,24 +116,25 @@ if __name__ == '__main__':
         im.available_injectors()
     else:
         im.fromJSON(INJ_JSON, verbose=True)
-    im.start_campaign(cycle_ms=OBS_INTERVAL, cycles=N_OBS, verbose=False)
+    im.start_campaign(inj_filename=INJ_FILENAME, cycle_ms=OBS_INTERVAL, cycles=N_OBS, verbose=False)
 
-    # Monitoring Process
     obs_data = []
+    current_inj = None
     read_time = -1
-    start_time = current_ms()
-    n_obs = 0
     for obs_index in tqdm(range(N_OBS), desc='Monitor Progress Bar'):
         start_it = current_ms()
         if VERBOSE > 1:
             print("Read: time of %d ms" % read_time)
+        # Read data
         obs_data.append(pm.read_probes_data())
+        # Partially Store Data
         if len(obs_data) % STORE_INTERVAL == STORE_INTERVAL - 1:
             store_observations(FILENAME, obs_data)
             obs_data = []
+        # Wait til the end of the cycle
         read_time = current_ms() - start_it
         if read_time < OBS_INTERVAL:
-            time.sleep((OBS_INTERVAL - read_time)/1000)
+            time.sleep((OBS_INTERVAL - read_time) / 1000)
         else:
             print("ERROR: monitor time was %d ms, desired interval is %d ms" % (read_time, OBS_INTERVAL))
             break
@@ -135,10 +145,22 @@ if __name__ == '__main__':
         obs_data = []
 
     # Retrieve Injections info
-    inj_log = im.collect_injections(VERBOSE)
-    with open(INJ_FILENAME, 'w', newline='') as myFile:
-        writer = csv.writer(myFile)
-        keys = ['start', 'end', 'inj_name']
-        writer.writerow(keys)
-        for dictionary in inj_log:
-            writer.writerow([str(dictionary[d_key]) for d_key in keys])
+    # inj_log = im.collect_injections(VERBOSE)
+    # with open(INJ_FILENAME, 'w', newline='') as myFile:
+    #     writer = csv.writer(myFile)
+    #     keys = ['start', 'end', 'inj_name']
+    #     writer.writerow(keys)
+    #     for dictionary in inj_log:
+    #         writer.writerow([str(dictionary[d_key]) for d_key in keys])
+    while im.is_campaign_running():
+        print('Waiting for threads to complete')
+        time.sleep(1)
+
+    if MERGE_FILES:
+        import merge_data_injections
+        merge_data_injections.main([
+            '-o', FILENAME.replace('test', 'merged'),
+            '-m', FILENAME,
+            '-i', INJ_FILENAME,
+            '-t', '_timestamp',
+            '-v', str(VERBOSE)])

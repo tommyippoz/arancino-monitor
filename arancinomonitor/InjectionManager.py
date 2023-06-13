@@ -1,4 +1,6 @@
+import csv
 import json
+import multiprocessing
 import os.path
 import random
 import threading
@@ -38,6 +40,7 @@ class InjectionManager:
         self.injectors = None
         self.injections = None
         self.camp_thread = None
+        self.available_inj = None
 
     def available_injectors(self, set_inj=True, verbose=True):
         """
@@ -56,50 +59,61 @@ class InjectionManager:
             self.injectors = av_inj
         return av_inj
 
-    def start_campaign(self, cycle_ms: int = 1000, cycles: int = 100, verbose: bool = True):
+    def start_campaign(self, inj_filename, cycle_ms: int = 1000, cycles: int = 100, verbose: bool = True):
         """
-        Caller of the body of the injection mechanism, which will be executed in a separate thread
+        Caller of the body of the injection mechanism, which will be executed in a separate Process
         """
-        self.camp_thread = threading.Thread(target=self.campaign_body, args=(cycle_ms, cycles, verbose))
+        self.camp_thread = multiprocessing.Process(target=self.campaign_body,
+                                                   args=(inj_filename, cycle_ms, cycles, verbose))
         self.camp_thread.start()
 
-    def campaign_body(self, cycle_ms: int = 1000, cycles: int = 100, verbose: bool = True):
+    def campaign_body(self, inj_filename: str, cycle_ms: int = 1000, cycles: int = 100, verbose: bool = True):
         """
         Handles the error injection campaign
         """
         self.campaign_running = True
-        available_inj = None
-        inj_act_time = None
+        self.available_inj = None
+        inj_timer = 0
 
         if self.injectors is not None and len(self.injectors) > 0:
 
             for cycle_id in range(0, cycles):
                 start_ms = current_ms()
-                # If there are no active injections
+                # If there are no active injections and no cooldown
                 # If there is enough time before end of campaign
                 # If probability activates
-                if available_inj is None \
-                        and ((cycles - cycle_id - 1)*cycle_ms > self.inj_duration) \
+                if self.available_inj is None and inj_timer == 0 \
+                        and ((cycles - cycle_id - 1) * cycle_ms > self.inj_duration) \
                         and (random.randint(0, 999) / 999.0) <= self.error_rate:
                     # Randomly chooses an injector and performs injection
-                    while available_inj is None:
+                    while self.available_inj is None:
                         inj_index = random.randint(0, len(self.injectors) - 1)
                         if not self.injectors[inj_index].is_injector_running():
-                            available_inj = self.injectors[inj_index]
+                            self.available_inj = self.injectors[inj_index]
                     if verbose:
-                        print("Injecting with injector '%s'" % available_inj.get_name())
-                    available_inj.inject()
-                    inj_act_time = current_ms()
+                        print("Injecting with injector '%s'" % self.available_inj.get_name())
+                    inj_thread = threading.Thread(target=self.available_inj.inject)
+                    inj_thread.start()
+                    inj_timer = self.inj_duration + self.inj_cooldown
                 sleep_s = (cycle_ms - (current_ms() - start_ms)) / 1000.0
                 if sleep_s > 0:
                     time.sleep(sleep_s)
-                if inj_act_time is not None and current_ms() >= inj_act_time + self.inj_cooldown:
-                    available_inj = None
-                    inj_act_time = None
+                # Managing cooldown
+                inj_timer = inj_timer - cycle_ms if inj_timer > 0 else 0
+                if inj_timer < self.inj_cooldown:
+                    self.available_inj = None
+
         else:
             print("No injectors were set for this experimental campaign")
 
         self.campaign_running = False
+        self.collect_injections()
+        with open(inj_filename, 'w', newline='') as myFile:
+            writer = csv.writer(myFile)
+            keys = ['start', 'end', 'inj_name']
+            writer.writerow(keys)
+            for dictionary in self.injections:
+                writer.writerow([str(dictionary[d_key]) for d_key in keys])
 
     def is_campaign_running(self):
         """
@@ -114,7 +128,8 @@ class InjectionManager:
         """
         while self.is_campaign_running():
             # This should not happen unless strange overhead happen
-            print("Warning! Injection campaign is still running, waiting 1 sec for it to finish")
+            print("Warning! Injection campaign is still running, trying to force-close")
+            self.force_close_injections()
             time.sleep(1)
         if self.injections is None:
             self.injections = []
@@ -126,6 +141,12 @@ class InjectionManager:
                     if verbose:
                         print("Injections with injector '" + str(inj.get_name()) + "': " + str(len(new_inj)))
         return self.injections
+
+    def get_injectors(self):
+        return self.injectors
+
+    def has_injectors(self):
+        return self.injectors is not None and len(self.injectors) > 0
 
     def fromJSON(self, json_object, set_inj=True, verbose=True):
         """
@@ -150,7 +171,7 @@ class InjectionManager:
             for job in json_object:
                 job["duration_ms"] = self.inj_duration
                 new_inj = LoadInjector.fromJSON(job)
-                if new_inj is not None:
+                if new_inj is not None and new_inj.is_valid():
                     # Means it was a valid JSON specification of an Injector
                     json_injectors.append(new_inj)
                     if verbose:
@@ -158,3 +179,6 @@ class InjectionManager:
             if set_inj:
                 self.injectors = json_injectors
 
+    def force_close_injections(self):
+        if self.available_inj is not None:
+            self.available_inj.force_close()
