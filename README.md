@@ -1,2 +1,4 @@
 # arancino-monitor
-Python Monitor for ARANCINO SoC @UNIFI
+Lightweight Python Monitor for Linux-Based Devices
+
+
