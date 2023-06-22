@@ -5,7 +5,7 @@ This repository contains the code for conducting a monitor and error injection c
 The code is compatible with Python 3.5.3 due to constraints we have in the usage of RaspBian 9 Stretch.
 
 Help on the usage
-
+```
 usage: injection_main.py [-h] [-o OUTFILE] [-i INTERVAL] [-n NOBS] [-w WOBS]
                          [-id INJDUR] [-ir INJRATE] [-ic INJCOOLDOWN]
                          [-ij INJJSON] [-mf MERGEFILES] [-v VERBOSE]
@@ -30,3 +30,4 @@ optional arguments:
                         True if features and injections have to be merged at the end; default is True
   -v VERBOSE, --verbose VERBOSE
                         0 if all messages need to be suppressed, 2 if all have to be shown. 1 displays base info
+```
