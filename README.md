@@ -11,13 +11,13 @@ usage: injection_main.py [-h] [-o OUTFILE] [-i INTERVAL] [-n NOBS] [-w WOBS]
                          [-ij INJJSON] [-mf MERGEFILES] [-v VERBOSE]
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -o OUTFILE, --outfile OUTFILE
-                        location of the output file; default is 'test.csv' in the current folder
-  -i INTERVAL, --interval INTERVAL
-                        interval in ms between two observations; default is 1000 ms (1 sec)
-  -n NOBS, --nobs NOBS  number of observations before stopping; default is 15
-  -w WOBS, --wobs WOBS  number of observations to keep in RAM before saving to file; default is 10
+-h, --help            show this help message and exit
+-o OUTFILE, --outfile OUTFILE
+  location of the output file; default is 'test.csv' in the current folder
+-i INTERVAL, --interval INTERVAL
+  interval in ms between two observations; default is 1000 ms (1 sec)
+-n NOBS, --nobs NOBS  number of observations before stopping; default is 15
+-w WOBS, --wobs WOBS  number of observations to keep in RAM before saving to file; default is 10
   -id INJDUR, --injdur INJDUR
                         ms from beginning to end of an injection; default is 1000
   -ir INJRATE, --injrate INJRATE
